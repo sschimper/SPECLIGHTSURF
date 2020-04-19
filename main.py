@@ -2,9 +2,23 @@ import sys
 import numpy as np
 
 
+# representation of frame of reference
+# using right-handed coordinate system
+class ReferenceFrame:
+    def __init__(self, x, y, z):
+        self.x = x
+        self.y = y
+        self.z = z
+
+
 # representation of stokes vector
 class StokesVector:
-    def __init__(self, s_0, s_1, s_2, s_3):
+    def __init__(self, s_0, s_1, s_2, s_3, frame):
+        if frame is not None:
+            self.frame = frame
+        else:
+            self.frame = None
+
         if s_0 < 0:
             print("Error: Intensity of stokes vector is negative.")
             sys.exit(0)
@@ -13,17 +27,58 @@ class StokesVector:
             print("Error: Parameters of stokes vector are not between 0.0 and 1.0 .")
             sys.exit(0)
 
+        # stokes vector
         self.vector = np.array([s_0, s_1, s_2, s_3])
+
+    # set frame of reference
+    def set_frame(self, frame):
+        self.frame = frame
 
 
 # representation of mueller matrix
 class MuellerMatrix:
-    pass
+    def __init__(self, frame_entry, frame_exit):
+        if frame_entry is not None:
+            self.frame_entry = frame_entry
+        else:
+            self.frame_entry = None
+
+        if frame_exit is not None:
+            self.frame_exit = frame_exit
+        else:
+            self.frame_exit = None
+
+        self.matrix = np.array([[0, 0, 0, 0],
+                                [0, 0, 0, 0],
+                                [0, 0, 0, 0],
+                                [0, 0, 0, 0]])
+
+    # calculate the mueller matrix
+    def set_mueller_matriy(self, matrix):
+        self.matrix = matrix
+
+    # set entry frame
+    def set_entry_frame(self, frame_entry):
+        self.frame_entry = frame_entry
+
+    # set exit frame
+    def set_exit_frame(self, frame_exit):
+        self.frame_exit = frame_exit
 
 
-# representation of frames of reference
-class FrameOfReference:
-    pass
+# get mueller matrix for reflection
+def get_reflection_muller_matrix():
+    t_fresnel = MuellerMatrix(None, None)
+
+
+
+    return t_fresnel
+
+
+# print the resulting vector
+def print_stokes_vector(sv):
+    print("The resulting stokes vector looks like this: ")
+    print(sv)
 
 
 def do_stuff(points_conductor, ior, ext_coeff, delta, rho, phi, use_polarization_filter):
@@ -39,6 +94,7 @@ def do_stuff(points_conductor, ior, ext_coeff, delta, rho, phi, use_polarization
 
     print("\nSTARTING CALCULATION")
 
+    t_fresnel = get_reflection_muller_matrix()
 
 # process user input
 def get_user_parameters():
@@ -82,10 +138,12 @@ def get_user_parameters():
     phi_answer = input("\nPlease enter your preferred value for the angle Phi: ")
     phi = float(phi_answer) % 360
 
+    # query the user if (s)he wants to use polarization filter
     polarization_answer = input("\nWould you like to use a Polarization filter? If so, please type 'y': ")
     if polarization_answer == "y" or polarization_answer == "Y":
         use_polarization_filter = True
 
+    # start calculation
     do_stuff(points_conductor, ior, ext_coeff, delta, rho, phi, use_polarization_filter)
 
 
