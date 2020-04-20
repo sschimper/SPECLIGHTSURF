@@ -1,14 +1,55 @@
 import sys
 import numpy as np
+import math
+
+
+# rotation matrix (rotates counter-clockwise around x axis)
+def rotate(vector, theta):
+    rot_matrix = np.array([[1, 0, 0],
+                           [0, math.cos(theta), -math.sin(theta)],
+                           [0, math.sin(theta), math.cos(theta)]
+                           ])
+
+    return rot_matrix.dot(vector)
 
 
 # representation of frame of reference
 # using right-handed coordinate system
 class ReferenceFrame:
-    def __init__(self, x, y, z):
-        self.x = x
-        self.y = y
-        self.z = z
+    def __init__(self, angle):
+        # initial coordinate system
+        self.x = np.array([1, 0, 0])
+        self.y = np.array([0, 1, 0])
+        self.z = np.array([0, 0, 1])
+
+        # rotate frame
+        self.x = rotate(self.x, angle)  # should be the same
+        self.y = rotate(self.y, angle)
+        self.z = rotate(self.z, angle)
+
+        # verify orthogonality
+        assert self.x.dot(self.y) == 0.0 and self.x.dot(self.z) == 0.0 and self.y.dot(self.x) == 0.0
+        print("x : ", self.x)
+        print("y : ", self.y)
+        print("z : ", self.z)
+
+    def get_x(self):
+        return self.x
+
+    def set_x(self, new_x):
+        self.x = new_x
+
+    def get_y(self):
+        return self.y
+
+    def set_y(self, new_y):
+        self.y = new_y
+
+    def get_z(self):
+        return self.z
+
+    def set_z(self, new_z):
+        self.z = new_z
 
 
 # representation of stokes vector
@@ -70,8 +111,6 @@ class MuellerMatrix:
 def get_reflection_muller_matrix():
     t_fresnel = MuellerMatrix(None, None)
 
-
-
     return t_fresnel
 
 
@@ -94,7 +133,17 @@ def do_stuff(points_conductor, ior, ext_coeff, delta, rho, phi, use_polarization
 
     print("\nSTARTING CALCULATION")
 
-    t_fresnel = get_reflection_muller_matrix()
+    # angle for alighning coordinate system with light beam
+    eye_rot_angle = 180 - 90 - delta
+    eye_frame = ReferenceFrame(eye_rot_angle)
+
+    stokes_vector = StokesVector(100.0, 0.0, 0.0, 0.0, eye_frame)
+
+    x1_rot_angle = - (90 - delta)
+    x1_entry_frame = ReferenceFrame(x1_rot_angle)
+
+    x1_mueller_matrix = MuellerMatrix(eye_frame, x1_entry_frame)
+
 
 # process user input
 def get_user_parameters():
