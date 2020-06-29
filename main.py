@@ -1,5 +1,6 @@
 import sys
 import numpy as np
+from numpy.testing import assert_array_equal
 import math
 
 
@@ -214,7 +215,7 @@ def calculate_polarization_matrix(gamma):
 
 # check if 2 reference frames are matching
 def referenceframe_match(a, b):
-    if np.all(a.x == b.x) and np.all(a.y == b.y) and np.all(a.z == a.z):
+    if np.all(a.x == b.x) and np.all(a.y == b.y) and np.all(a.z == b.z) and np.all(a.w == b.w):
         return True
     else:
         return False
@@ -235,22 +236,30 @@ def calculate_angle(vec_a, vec_b):
     return res
 
 
-# rotate reference frame to match mueller matrix entry frame
-def rotate_referenceframe(reference_frame, entry_matrix):
-    theta_x = calculate_angle(reference_frame.x, entry_matrix.x)
-    theta_y = calculate_angle(reference_frame.y, entry_matrix.y)
-    theta_z = calculate_angle(reference_frame.z, entry_matrix.z)
+# determine discrepancy angle
+def get_discrepancy_angle(reference_frame_comp, entry_matrix_comp):
+    theta = calculate_angle(reference_frame_comp, entry_matrix_comp)
+    return theta
 
-    assert theta_x == theta_y and theta_y == theta_z
 
-    rotateX(reference_frame.x, theta_x)
-    rotateY(reference_frame.y, theta_y)
-    rotateZ(reference_frame.z, theta_z)
+# interact with surface
+def interact_with_surface(mueller_matrix, stokes_vector, theta):
+    if theta == 0.0 or theta is None:
+        res = mueller_matrix.dot(stokes_vector)
+        return res
+    else:
+        rot_mat_negative = np.array([[1, 0, 0, 0],
+                                     [0, math.cos(-2 * theta), math.sin(-2 * theta), 0],
+                                     [0, -math.sin(-2 * theta), math.cos(-2 * theta), 0],
+                                     [0, 0, 0, 1]])
 
-    assert referenceframe_match(reference_frame, entry_matrix)
+        rot_mat_pos = np.array([[1, 0, 0, 0],
+                                [0, math.cos(2 * theta), math.sin(2 * theta), 0],
+                                [0, -math.sin(2 * theta), math.cos(2 * theta), 0],
+                                [0, 0, 0, 1]])
 
-    # verify orthogonality
-    assert reference_frame.x.dot(reference_frame.y) == 0.0 and reference_frame.x.dot(reference_frame.z) == 0.0 and reference_frame.y.dot(reference_frame.x) == 0.0
+        res = rot_mat_negative.dot(mueller_matrix).dot(rot_mat_pos).dot(stokes_vector)
+        return res
 
 
 # print the resulting vector
@@ -283,7 +292,8 @@ def calculate_polarized_light(points_conductor, ior_c, ext_coeff, delta, rho, ph
     eye_rot_angle = 90 - delta
     eye_frame = ReferenceFrame(eye_rot_angle, None)
 
-    stokes_vector = StokesVector(100.0, 0.0, 0.0, 0.0, eye_frame)
+    # stokes vector set up
+    stokes_vector = StokesVector(100.0, 1.0, 0.0, 0.0, eye_frame)
 
     # X1 - setup
     x1_rot_angle = (180 - 2 * delta) / 2
@@ -301,9 +311,37 @@ def calculate_polarized_light(points_conductor, ior_c, ext_coeff, delta, rho, ph
 
     # X1 - interaction
     if referenceframe_match(stokes_vector.frame, x1_mueller_matrix.frame_entry):
-        print_stokes_vector(stokes_vector.vector)
-        stokes_vector.vector = x1_mueller_matrix.matrix.dot(stokes_vector.vector)
-        print_stokes_vector(stokes_vector.vector)
+        stokes_vector.vector = interact_with_surface(x1_mueller_matrix.matrix, stokes_vector.vector, x1_rot_angle)
+        stokes_vector.frame.y = rotateX(stokes_vector.frame.y, -2 * x1_rot_angle)
+        stokes_vector.frame.z = rotateX(stokes_vector.frame.z, -2 * x1_rot_angle)
+        print("stokes vector frame")
+        print(stokes_vector.frame.x)
+        print(stokes_vector.frame.y)
+        print(stokes_vector.frame.z)
+        print(stokes_vector.frame.w)
+        print("matrix exit frame")
+        print(x1_mueller_matrix.frame_exit.x)
+        print(x1_mueller_matrix.frame_exit.y)
+        print(x1_mueller_matrix.frame_exit.z)
+        print(x1_mueller_matrix.frame_exit.w)
+        # assert stokes_vector.frame == x1_mueller_matrix.frame_exit # weird bug, vectors look correct when print
+        stokes_vector.vector = rotateX(stokes_vector.vector, -2 * x1_rot_angle)
+
+    # X2 - interaction
+    if not referenceframe_match(stokes_vector.frame, x2_mueller_matrix.frame_entry):
+        # bring back to initial
+        stokes_vector.frame.y = rotateX(stokes_vector.frame.y, x1_rot_angle)
+        stokes_vector.frame.z = rotateX(stokes_vector.frame.z, x1_rot_angle)
+        stokes_vector.vector = rotateX(stokes_vector.vector, x1_rot_angle)
+        # rotate neg phi
+        stokes_vector.frame.y = rotateX(stokes_vector.frame.y, -x2_rot_angle)
+        stokes_vector.frame.z = rotateX(stokes_vector.frame.z, -x2_rot_angle)
+        stokes_vector.vector = rotateX(stokes_vector.vector, -x2_rot_angle)
+        # rotate neg rho
+        stokes_vector.frame.x = rotateZ(stokes_vector.frame.x, -rho)
+        stokes_vector.frame.y = rotateZ(stokes_vector.frame.y, -rho)
+        stokes_vector.frame.z = rotateZ(stokes_vector.frame.z, -rho)
+        stokes_vector.vector = rotateZ(stokes_vector.vector, -rho)
 
     # filter - setup
     pol_filter = PolarizationFilter(None, None)
