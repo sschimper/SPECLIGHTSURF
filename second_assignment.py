@@ -10,6 +10,8 @@ def deg_to_rad(angle):
 
 # rotation matrix (rotates counter-clockwise around x axis)
 def rotateX(vector, theta):
+    theta = math.radians(theta)
+
     rot_matrix = np.array([[1, 0, 0, 0],
                            [0, math.cos(theta), -math.sin(theta), 0],
                            [0, math.sin(theta), math.cos(theta), 0],
@@ -44,7 +46,7 @@ def rotateZ(vector, theta):
 # representation of frame of reference
 # using left-handed coordinate system
 class ReferenceFrame:
-    def __init__(self, angleZ):
+    def __init__(self, angleX):
         # initial coordinate system
         self.x = np.array([1, 0, 0, 0])
         self.y = np.array([0, 1, 0, 0])
@@ -52,11 +54,11 @@ class ReferenceFrame:
         self.w = np.array([0, 0, 0, 1])
 
         # rotate frame around x axis
-        if angleZ is not None:
-            self.x = rotateZ(self.x, angleZ)  # should be the same
-            self.y = rotateZ(self.y, angleZ)
-            self.z = rotateZ(self.z, angleZ)
-            self.w = rotateZ(self.w, angleZ)
+        if angleX is not None:
+            self.x = rotateX(self.x, angleX)  # should be the same
+            self.y = rotateX(self.y, angleX)
+            self.z = rotateX(self.z, angleX)
+            self.w = rotateX(self.w, angleX)
 
         assert self.x.dot(self.y) == 0.0 and self.x.dot(self.z) == 0.0 and self.y.dot(self.x) == 0.0
 
@@ -181,19 +183,20 @@ def calculate_b_coeff(ior_c, theta):
 
 # calculate the mueller matrix
 def calculate_mueller_matrix(ior_c, a, b, theta):
-    theta = deg_to_rad(theta)  # convert theta to radiant
+    # theta = deg_to_rad(theta)  # convert theta to radiant
+    theta = math.radians(theta)
 
-    f_perp = (a ** 2 + b ** 2 - 2 * a * math.cos(theta) + math.cos(theta) ** 2) / (
-            a ** 2 + b ** 2 + 2 * a * math.cos(theta) + math.cos(theta) ** 2)
-    f_paral = f_perp * (a ** 2 + b ** 2 - 2 * a * math.sin(theta) * math.tan(theta) + (math.sin(theta) ** 2) * (
-            math.tan(theta) ** 2)) / (a ** 2 + b ** 2 + 2 * a * math.sin(theta) * math.tan(theta) + (math.sin(theta) ** 2) * (
-                      math.tan(theta) ** 2))
+    f_perp = (a ** 2 + b ** 2 - 2 * a * math.cos(theta) + math.cos(theta) ** 2)\
+             / (a ** 2 + b ** 2 + 2 * a * math.cos(theta) + math.cos(theta) ** 2)
+    f_paral = f_perp * (a ** 2 + b ** 2 - 2 * a * math.sin(theta) * math.tan(theta) + (math.sin(theta) ** 2) * (math.tan(theta) ** 2))\
+              / (a ** 2 + b ** 2 + 2 * a * math.sin(theta) * math.tan(theta) + (math.sin(theta) ** 2) * (math.tan(theta) ** 2))
 
-    tan_delta_perp = (2 * b * math.cos(theta)) / (pow(math.cos(theta), 2) - pow(a, 2) - pow(b, 2))
-    tan_delta_paral = (2 * math.cos(theta) * ((pow(ior_c.real, 2) - pow(ior_c.imag, 2)) * b - 2 * ior_c.real * ior_c.imag * a)) / (pow(pow(ior_c.real, 2) + pow(ior_c.imag, 2), 2) * pow(math.cos(theta), 2) - pow(a, 2) - pow(b, 2))
+    delta_perp = math.atan((2 * b * math.cos(theta)) / (pow(math.cos(theta), 2) - pow(a, 2) - pow(b, 2)))
+    delta_paral = math.atan((2 * math.cos(theta) * ((pow(ior_c.real, 2) - pow(ior_c.imag, 2)) * b - 2 * ior_c.real * ior_c.imag * a)) \
+                      / (pow(pow(ior_c.real, 2) + pow(ior_c.imag, 2), 2) * pow(math.cos(theta), 2) - pow(a, 2) - pow(b, 2)))
 
-    delta_perp = math.atan(tan_delta_perp)
-    delta_paral = math.atan(tan_delta_paral)
+    #  delta_perp = math.atan(tan_delta_perp)
+    #  delta_paral = math.atan(tan_delta_paral)
 
     A = (f_perp + f_paral) / 2
     B = (f_perp - f_paral) / 2
@@ -208,13 +211,16 @@ def calculate_mueller_matrix(ior_c, a, b, theta):
 
 
 # calculate polarization matrix
-def apply_polarization(stokes_vector, gamma):
-    gamma = deg_to_rad(gamma)  # convert to radians
-    matrix = np.array([[1, math.cos(2 * gamma), math.sin(2 * gamma), 0],
-                       [math.cos(2 * gamma), pow(math.cos(2 * gamma), 2), math.sin(2 * gamma) * math.cos(2 * gamma), 0],
-                       [math.sin(2 * gamma), math.sin(2 * gamma) * math.cos(2 * gamma), pow(math.sin(2 * gamma), 2), 0],
-                       [0, 0, 0, 0]])
+def apply_polarization(stokes_vector, phi):
+    phi = deg_to_rad(phi)  # convert to radians
 
+    cos2Phi = math.cos(2 * phi)
+    sin2Phi = math.sin(2 * phi)
+
+    matrix = np.array([[1, cos2Phi, sin2Phi, 0],
+                       [cos2Phi, pow(cos2Phi, 2), sin2Phi * cos2Phi, 0],
+                       [sin2Phi, sin2Phi * cos2Phi, pow(sin2Phi, 2), 0],
+                       [0, 0, 0, 0]])
     intermediate_res = 0.5 * matrix
     res = intermediate_res.dot(stokes_vector.vector)
 
@@ -223,31 +229,38 @@ def apply_polarization(stokes_vector, gamma):
 
 # check if 2 reference frames are matching
 def referenceframe_match(a, b):
-    if np.all(a.x == b.x) and np.all(a.y == b.y) and np.all(a.z == b.z) and np.all(a.w == b.w):
+    epsilon = 0.00001
+    if abs(a.x[0] - b.x[0]) <= epsilon and abs(a.x[1] - b.x[1]) <= epsilon and abs(a.x[2] - b.x[2]) <= epsilon \
+        and abs(a.y[0] - b.y[0]) <= epsilon and abs(a.y[1] - b.y[1]) <= epsilon and abs(a.y[2] - b.y[2]) <= epsilon \
+            and abs(a.z[0] - b.z[0]) <= epsilon and abs(a.z[1] - b.z[1]) <= epsilon and abs(a.z[2] - b.z[2]) <= epsilon:
         return True
     else:
         return False
 
 
-# calculate magnitude
-def calculate_magnitude(vector):
-    return np.sqrt(vector[0] ** 2 + vector[1] ** 2 + vector[2] ** 2)
+# function for normalizing vector taken from here:
+# https://stackoverflow.com/questions/2827393/angles-between-two-n-dimensional-vectors-in-python/13849249#13849249
+def unit_vector(vector):
+    """ Returns the unit vector of the vector.  """
+    return vector / np.linalg.norm(vector)
 
 
-# calculate angle btw two vectors
-def calculate_angle_btw_vectors(vec_a, vec_b):
-    vec_a_mag = calculate_magnitude(vec_a)
-    vec_b_mag = calculate_magnitude(vec_b)
+# function for calculating the angle btw 2 vectors taken from here:
+# https://stackoverflow.com/questions/2827393/angles-between-two-n-dimensional-vectors-in-python/13849249#13849249
+def angle_between(v1, v2):
+    """ Returns the angle in radians between vectors 'v1' and 'v2'::
 
-    res = np.dot(vec_a, vec_b) / np.dot(vec_a_mag, vec_b_mag)
-    res = np.arccos(res)
-    return res
+            >>> angle_between((1, 0, 0), (0, 1, 0))
+            1.5707963267948966
+            >>> angle_between((1, 0, 0), (1, 0, 0))
+            0.0
+            >>> angle_between((1, 0, 0), (-1, 0, 0))
+            3.141592653589793
+    """
+    v1_u = unit_vector(v1)
+    v2_u = unit_vector(v2)
 
-
-# determine discrepancy angle
-def get_discrepancy_angle(reference_frame_comp, entry_matrix_comp):
-    theta = calculate_angle_btw_vectors(reference_frame_comp, entry_matrix_comp)
-    return theta
+    return np.arccos(np.clip(np.dot(v1_u, v2_u), -1.0, 1.0))
 
 
 # interact with surface
@@ -257,24 +270,35 @@ def interact_with_surface(mueller_matrix, stokes_vector):
         return res
 
     else:
-        discr_angle_y = get_discrepancy_angle(mueller_matrix.frame_entry.y, stokes_vector.frame.y)
-        discr_angle_x = get_discrepancy_angle(mueller_matrix.frame_entry.x, stokes_vector.frame.x)
+        discr_angle_y = angle_between(mueller_matrix.frame_entry.y, stokes_vector.frame.y)
+        discr_angle_z = angle_between(mueller_matrix.frame_entry.z, stokes_vector.frame.z)
 
-        assert discr_angle_y == discr_angle_x
+        assert discr_angle_y == discr_angle_z
 
         theta = discr_angle_y
 
-        rot_mat_negative = np.array([[1, 0, 0, 0],
-                                     [0, math.cos(-2 * theta), math.sin(-2 * theta), 0],
-                                     [0, -math.sin(-2 * theta), math.cos(-2 * theta), 0],
-                                     [0, 0, 0, 1]])
+        '''
+        # for debugging
+        theta_deg = math.degrees(theta)
+        test_frame = stokes_vector.frame
+        rotateX(test_frame.y, theta_deg)
+        rotateX(test_frame.z, theta_deg)
+        if not referenceframe_match(test_frame, mueller_matrix.frame_entry):
+            print("this didn't work")
+            return
+        '''
 
-        rot_mat_pos = np.array([[1, 0, 0, 0],
+        rot_mat_neg = np.array([[1, 0, 0, 0],
                                 [0, math.cos(2 * theta), math.sin(2 * theta), 0],
                                 [0, -math.sin(2 * theta), math.cos(2 * theta), 0],
                                 [0, 0, 0, 1]])
 
-        res = rot_mat_negative.dot(mueller_matrix.matrix)
+        rot_mat_pos = np.array([[1, 0, 0, 0],
+                                [0, math.cos(-2 * theta), math.sin(-2 * theta), 0],
+                                [0, -math.sin(-2 * theta), math.cos(-2 * theta), 0],
+                                [0, 0, 0, 1]])
+
+        res = rot_mat_neg.dot(mueller_matrix.matrix)
         res = res.dot(rot_mat_pos)
         res = res.dot(stokes_vector.vector)
         return res
@@ -337,12 +361,14 @@ def calculate_polarized_light(ior_c_X1, ior_c_X2, delta, rho, phi, polarization_
     # print result
     print("--------------------------------------------------")
     print_stokes_vector(stokes_vector.vector)
+    print("--------------------------------------------------")
+    print("")
 
 
 # process user input
 def get_user_parameters():
-    use_polarization_filter = False
 
+    '''
     # index of refraction X1
     ior_real = input("\nPlease enter your preferred real value for the Index of Refraction for X_1: ")
     ior_real = float(ior_real)
@@ -387,6 +413,15 @@ def get_user_parameters():
     if polarization_answer == "y" or polarization_answer == "Y":
         polarization_answer = input("\nPlease enter your preferred value for the polarization angle (in degrees):  ")
         polarization_angle = float(polarization_answer) % 360
+    '''
+
+    # for now
+    ior_c_X1 = ComplexNumber(0.666, 0)
+    ior_c_X2 = ComplexNumber(0.666, 0)
+    delta = 48
+    rho = 0
+    phi = 54.6
+    polarization_angle = 45
 
     # start calculation
     calculate_polarized_light(ior_c_X1, ior_c_X2, delta, rho, phi, polarization_angle)
@@ -398,11 +433,14 @@ print("||    2nd ASSIGNMENT Sebastian Schimper    ||")
 print("=============================================")
 
 # menu loop
+'''
 user_option = None
-while (user_option != "start" and user_option != "Start") and (user_option != "exit" and user_option != "Exit"):
+while (user_option != "exit" and user_option != "Ecit") and (user_option != "exit" and user_option != "Exit"):
     user_option = input("Type either 'start' to start a new calculation or"
                         "\n'exit' to exit the program: ")
     if user_option == "start" or user_option == "Start":
         get_user_parameters()
     elif user_option == "exit" or user_option == "Exit":
         sys.exit(0)
+'''
+get_user_parameters()
