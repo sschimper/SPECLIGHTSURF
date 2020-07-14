@@ -186,14 +186,17 @@ def calculate_mueller_matrix(ior_c, a, b, theta):
     # theta = deg_to_rad(theta)  # convert theta to radiant
     theta = math.radians(theta)
 
-    f_perp = (a ** 2 + b ** 2 - 2 * a * math.cos(theta) + math.cos(theta) ** 2)\
+    f_perp = (a ** 2 + b ** 2 - 2 * a * math.cos(theta) + math.cos(theta) ** 2) \
              / (a ** 2 + b ** 2 + 2 * a * math.cos(theta) + math.cos(theta) ** 2)
-    f_paral = f_perp * (a ** 2 + b ** 2 - 2 * a * math.sin(theta) * math.tan(theta) + (math.sin(theta) ** 2) * (math.tan(theta) ** 2))\
-              / (a ** 2 + b ** 2 + 2 * a * math.sin(theta) * math.tan(theta) + (math.sin(theta) ** 2) * (math.tan(theta) ** 2))
+    f_paral = f_perp * (a ** 2 + b ** 2 - 2 * a * math.sin(theta) * math.tan(theta) + (math.sin(theta) ** 2) * (
+                math.tan(theta) ** 2)) \
+              / (a ** 2 + b ** 2 + 2 * a * math.sin(theta) * math.tan(theta) + (math.sin(theta) ** 2) * (
+                math.tan(theta) ** 2))
 
     delta_perp = math.atan((2 * b * math.cos(theta)) / (pow(math.cos(theta), 2) - pow(a, 2) - pow(b, 2)))
-    delta_paral = math.atan((2 * math.cos(theta) * ((pow(ior_c.real, 2) - pow(ior_c.imag, 2)) * b - 2 * ior_c.real * ior_c.imag * a)) \
-                      / (pow(pow(ior_c.real, 2) + pow(ior_c.imag, 2), 2) * pow(math.cos(theta), 2) - pow(a, 2) - pow(b, 2)))
+    delta_paral = math.atan(
+        (2 * math.cos(theta) * ((pow(ior_c.real, 2) - pow(ior_c.imag, 2)) * b - 2 * ior_c.real * ior_c.imag * a)) \
+        / (pow(pow(ior_c.real, 2) + pow(ior_c.imag, 2), 2) * pow(math.cos(theta), 2) - pow(a, 2) - pow(b, 2)))
 
     #  delta_perp = math.atan(tan_delta_perp)
     #  delta_paral = math.atan(tan_delta_paral)
@@ -207,6 +210,7 @@ def calculate_mueller_matrix(ior_c, a, b, theta):
                        [B, A, 0, 0],
                        [0, 0, C, S],
                        [0, 0, -S, C]])
+
     return matrix
 
 
@@ -222,7 +226,7 @@ def apply_polarization(stokes_vector, phi):
                        [sin2Phi, sin2Phi * cos2Phi, pow(sin2Phi, 2), 0],
                        [0, 0, 0, 0]])
     intermediate_res = 0.5 * matrix
-    res = intermediate_res.dot(stokes_vector.vector)
+    res = stokes_vector.vector.dot(intermediate_res)
 
     return res
 
@@ -231,7 +235,7 @@ def apply_polarization(stokes_vector, phi):
 def referenceframe_match(a, b):
     epsilon = 0.00001
     if abs(a.x[0] - b.x[0]) <= epsilon and abs(a.x[1] - b.x[1]) <= epsilon and abs(a.x[2] - b.x[2]) <= epsilon \
-        and abs(a.y[0] - b.y[0]) <= epsilon and abs(a.y[1] - b.y[1]) <= epsilon and abs(a.y[2] - b.y[2]) <= epsilon \
+            and abs(a.y[0] - b.y[0]) <= epsilon and abs(a.y[1] - b.y[1]) <= epsilon and abs(a.y[2] - b.y[2]) <= epsilon \
             and abs(a.z[0] - b.z[0]) <= epsilon and abs(a.z[1] - b.z[1]) <= epsilon and abs(a.z[2] - b.z[2]) <= epsilon:
         return True
     else:
@@ -266,7 +270,8 @@ def angle_between(v1, v2):
 # interact with surface
 def interact_with_surface(mueller_matrix, stokes_vector):
     if referenceframe_match(stokes_vector.frame, mueller_matrix.frame_entry):
-        res = mueller_matrix.matrix.dot(stokes_vector.vector)
+        # res = mueller_matrix.matrix.dot(stokes_vector.vector)
+        res = stokes_vector.vector.dot(mueller_matrix.matrix)
         return res
 
     else:
@@ -287,19 +292,18 @@ def interact_with_surface(mueller_matrix, stokes_vector):
             print("this didn't work")
             return
         '''
-
-        rot_mat_neg = np.array([[1, 0, 0, 0],
+        rot_mat_pos = np.array([[1, 0, 0, 0],
                                 [0, math.cos(2 * theta), math.sin(2 * theta), 0],
                                 [0, -math.sin(2 * theta), math.cos(2 * theta), 0],
                                 [0, 0, 0, 1]])
 
-        rot_mat_pos = np.array([[1, 0, 0, 0],
+        rot_mat_neg = np.array([[1, 0, 0, 0],
                                 [0, math.cos(-2 * theta), math.sin(-2 * theta), 0],
                                 [0, -math.sin(-2 * theta), math.cos(-2 * theta), 0],
                                 [0, 0, 0, 1]])
 
-        res = rot_mat_neg.dot(mueller_matrix.matrix)
-        res = res.dot(rot_mat_pos)
+        res = rot_mat_pos.dot(mueller_matrix.matrix)
+        res = res.dot(rot_mat_neg)
         res = res.dot(stokes_vector.vector)
         return res
 
@@ -348,15 +352,19 @@ def calculate_polarized_light(ior_c_X1, ior_c_X2, delta, rho, phi, polarization_
     x2_mueller_matrix = MuellerMatrix(x2_entry_frame, x2_exit_frame)
     x2_mueller_matrix.matrix = calculate_mueller_matrix(ior_c_X2, a_X2, b_X2, phi)
 
-    # X1 - interaction
-    stokes_vector.vector = interact_with_surface(x1_mueller_matrix, stokes_vector)
+    # debug
+    test_matrix1 = x2_mueller_matrix.matrix.dot(x1_mueller_matrix.matrix)
+    test_matrix2 = x1_mueller_matrix.matrix.dot(x2_mueller_matrix.matrix)
+
+    # filter - if not none -> interaction of stokes vector with it
+    if polarization_angle is not None:
+        stokes_vector.vector = apply_polarization(stokes_vector, polarization_angle)
 
     # X2 - interaction
     stokes_vector.vector = interact_with_surface(x2_mueller_matrix, stokes_vector)
 
-    # filter - setup
-    if polarization_angle is not None:
-        stokes_vector.vector = apply_polarization(stokes_vector, polarization_angle)
+    # X1 - interaction
+    stokes_vector.vector = interact_with_surface(x1_mueller_matrix, stokes_vector)
 
     # print result
     print("--------------------------------------------------")
@@ -367,7 +375,6 @@ def calculate_polarized_light(ior_c_X1, ior_c_X2, delta, rho, phi, polarization_
 
 # process user input
 def get_user_parameters():
-
     '''
     # index of refraction X1
     ior_real = input("\nPlease enter your preferred real value for the Index of Refraction for X_1: ")
@@ -416,12 +423,12 @@ def get_user_parameters():
     '''
 
     # for now
-    ior_c_X1 = ComplexNumber(0.666, 0)
-    ior_c_X2 = ComplexNumber(0.666, 0)
-    delta = 48
-    rho = 0
+    ior_c_X1 = ComplexNumber(0.666, 0.0)
+    ior_c_X2 = ComplexNumber(0.666, 0.0)
+    delta = 48.0
+    rho = 0.0
     phi = 54.6
-    polarization_angle = 45
+    polarization_angle = 45.0
 
     # start calculation
     calculate_polarized_light(ior_c_X1, ior_c_X2, delta, rho, phi, polarization_angle)
