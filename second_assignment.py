@@ -119,10 +119,10 @@ class MuellerMatrix:
         else:
             self.frame_exit = None
 
-        self.matrix = np.array([[0, 0, 0, 0],
-                                [0, 0, 0, 0],
-                                [0, 0, 0, 0],
-                                [0, 0, 0, 0]])
+        self.matrix = np.array([[1, 0, 0, 0],
+                                [0, 1, 0, 0],
+                                [0, 0, 1, 0],
+                                [0, 0, 0, 1]])
 
     # calculate the mueller matrix
     def set_mueller_matrix(self, matrix):
@@ -203,6 +203,16 @@ def calculate_mueller_matrix(ior_c, a, b, theta):
 
     A = (f_perp + f_paral) / 2
     B = (f_perp - f_paral) / 2
+
+    print("delta perpend: ", delta_perp)
+    print("delta parallel: ", delta_paral)
+    print("dif: ", delta_perp - delta_paral)
+    print("cos of it: ", math.cos(delta_perp - delta_paral))
+    print("f perpend: ", f_perp)
+    print("f parallel: ", f_paral)
+    print("f multiplied: ", f_perp * f_paral)
+
+
     C = math.cos(delta_perp - delta_paral) * math.sqrt(f_perp * f_paral)
     S = math.sin(delta_perp - delta_paral) * math.sqrt(f_perp * f_paral)
 
@@ -351,10 +361,6 @@ def calculate_polarized_light(ior_c_X1, ior_c_X2, delta, rho, phi, polarization_
     x2_exit_frame = ReferenceFrame(-rho)
     x2_mueller_matrix = MuellerMatrix(x2_entry_frame, x2_exit_frame)
     x2_mueller_matrix.matrix = calculate_mueller_matrix(ior_c_X2, a_X2, b_X2, phi)
-
-    # debug
-    test_matrix1 = x2_mueller_matrix.matrix.dot(x1_mueller_matrix.matrix)
-    test_matrix2 = x1_mueller_matrix.matrix.dot(x2_mueller_matrix.matrix)
 
     # filter - if not none -> interaction of stokes vector with it
     if polarization_angle is not None:
