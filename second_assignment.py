@@ -183,43 +183,32 @@ def calculate_b_coeff(ior_c, theta):
 
 # calculate the mueller matrix
 def calculate_mueller_matrix(ior_c, a, b, theta):
-    # theta = deg_to_rad(theta)  # convert theta to radiant
-    theta = math.radians(theta)
+    theta = math.radians(theta)  # convert degree to radiant
 
     f_perp = (a ** 2 + b ** 2 - 2 * a * math.cos(theta) + math.cos(theta) ** 2) \
              / (a ** 2 + b ** 2 + 2 * a * math.cos(theta) + math.cos(theta) ** 2)
     f_paral = f_perp * (a ** 2 + b ** 2 - 2 * a * math.sin(theta) * math.tan(theta) + (math.sin(theta) ** 2) * (
-                math.tan(theta) ** 2)) \
+            math.tan(theta) ** 2)) \
               / (a ** 2 + b ** 2 + 2 * a * math.sin(theta) * math.tan(theta) + (math.sin(theta) ** 2) * (
-                math.tan(theta) ** 2))
+            math.tan(theta) ** 2))
 
-    delta_perp = math.atan((2 * b * math.cos(theta)) / (pow(math.cos(theta), 2) - pow(a, 2) - pow(b, 2)))
-    delta_paral = math.atan(
-        (2 * math.cos(theta) * ((pow(ior_c.real, 2) - pow(ior_c.imag, 2)) * b - 2 * ior_c.real * ior_c.imag * a)) \
-        / (pow(pow(ior_c.real, 2) + pow(ior_c.imag, 2), 2) * pow(math.cos(theta), 2) - pow(a, 2) - pow(b, 2)))
-
-    #  delta_perp = math.atan(tan_delta_perp)
-    #  delta_paral = math.atan(tan_delta_paral)
+    # probably BUG in here: the values for C and S (see next "paragraph") are wrong. They depend on
+    # delta_perpendicular and on delta_parallel below. I don't know how and I don't know why...
+    # I went over it at least 20 times, consulted Tomaš and a mathematics student,
+    # and I honestly don't know what I am doing wrong here...
+    delta_perp = math.atan2((pow(math.cos(theta), 2) - pow(a, 2) - pow(b, 2)), 2 * b * math.cos(theta))
+    delta_paral = math.atan2((pow(pow(ior_c.real, 2) + pow(ior_c.imag, 2), 2) * pow(math.cos(theta), 2) - pow(a, 2) - pow(b, 2)),
+                             (2 * math.cos(theta) * ((pow(ior_c.real, 2) - pow(ior_c.imag, 2)) * b - 2 * ior_c.real * ior_c.imag * a)))
 
     A = (f_perp + f_paral) / 2
     B = (f_perp - f_paral) / 2
-
-    print("delta perpend: ", delta_perp)
-    print("delta parallel: ", delta_paral)
-    print("dif: ", delta_perp - delta_paral)
-    print("cos of it: ", math.cos(delta_perp - delta_paral))
-    print("f perpend: ", f_perp)
-    print("f parallel: ", f_paral)
-    print("f multiplied: ", f_perp * f_paral)
-
-
     C = math.cos(delta_perp - delta_paral) * math.sqrt(f_perp * f_paral)
     S = math.sin(delta_perp - delta_paral) * math.sqrt(f_perp * f_paral)
 
     matrix = np.array([[A, B, 0, 0],
                        [B, A, 0, 0],
-                       [0, 0, C, S],
-                       [0, 0, -S, C]])
+                       [0, 0, -C, S],
+                       [0, 0,  S, C]])
 
     return matrix
 
@@ -279,9 +268,13 @@ def angle_between(v1, v2):
 
 # interact with surface
 def interact_with_surface(mueller_matrix, stokes_vector):
+    # if the frame of the stokes vector matches the entry frame of the mueller matrix
+    #   then just multiply
+    # else
+    #   rotate to match, multiply and rotate back
     if referenceframe_match(stokes_vector.frame, mueller_matrix.frame_entry):
-        # res = mueller_matrix.matrix.dot(stokes_vector.vector)
-        res = stokes_vector.vector.dot(mueller_matrix.matrix)
+        res = mueller_matrix.matrix.dot(stokes_vector.vector)
+        # res = stokes_vector.vector.dot(mueller_matrix.matrix)
         return res
 
     else:
@@ -289,19 +282,8 @@ def interact_with_surface(mueller_matrix, stokes_vector):
         discr_angle_z = angle_between(mueller_matrix.frame_entry.z, stokes_vector.frame.z)
 
         assert discr_angle_y == discr_angle_z
-
         theta = discr_angle_y
 
-        '''
-        # for debugging
-        theta_deg = math.degrees(theta)
-        test_frame = stokes_vector.frame
-        rotateX(test_frame.y, theta_deg)
-        rotateX(test_frame.z, theta_deg)
-        if not referenceframe_match(test_frame, mueller_matrix.frame_entry):
-            print("this didn't work")
-            return
-        '''
         rot_mat_pos = np.array([[1, 0, 0, 0],
                                 [0, math.cos(2 * theta), math.sin(2 * theta), 0],
                                 [0, -math.sin(2 * theta), math.cos(2 * theta), 0],
@@ -381,7 +363,7 @@ def calculate_polarized_light(ior_c_X1, ior_c_X2, delta, rho, phi, polarization_
 
 # process user input
 def get_user_parameters():
-    '''
+
     # index of refraction X1
     ior_real = input("\nPlease enter your preferred real value for the Index of Refraction for X_1: ")
     ior_real = float(ior_real)
@@ -426,15 +408,24 @@ def get_user_parameters():
     if polarization_answer == "y" or polarization_answer == "Y":
         polarization_answer = input("\nPlease enter your preferred value for the polarization angle (in degrees):  ")
         polarization_angle = float(polarization_answer) % 360
-    '''
 
+    '''
     # for now
+    ior_c_X1 = ComplexNumber(1.12, 2.16)
+    ior_c_X2 = ComplexNumber(0.608, 2.12)
+    delta = 48.0
+    rho = 34.0
+    phi = 20.0
+    polarization_angle = None
+
+    
     ior_c_X1 = ComplexNumber(0.666, 0.0)
     ior_c_X2 = ComplexNumber(0.666, 0.0)
     delta = 48.0
     rho = 0.0
     phi = 54.6
-    polarization_angle = 45.0
+    polarization_angle = 45
+    '''
 
     # start calculation
     calculate_polarized_light(ior_c_X1, ior_c_X2, delta, rho, phi, polarization_angle)
@@ -446,7 +437,7 @@ print("||    2nd ASSIGNMENT Sebastian Schimper    ||")
 print("=============================================")
 
 # menu loop
-'''
+
 user_option = None
 while (user_option != "exit" and user_option != "Ecit") and (user_option != "exit" and user_option != "Exit"):
     user_option = input("Type either 'start' to start a new calculation or"
@@ -455,5 +446,5 @@ while (user_option != "exit" and user_option != "Ecit") and (user_option != "exi
         get_user_parameters()
     elif user_option == "exit" or user_option == "Exit":
         sys.exit(0)
-'''
+
 get_user_parameters()
