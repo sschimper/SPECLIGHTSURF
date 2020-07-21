@@ -1,6 +1,7 @@
 import sys
 import numpy as np
 import math
+from decimal import *
 
 
 # convert degrees to radiant
@@ -192,10 +193,6 @@ def calculate_mueller_matrix(ior_c, a, b, theta):
               / (a ** 2 + b ** 2 + 2 * a * math.sin(theta) * math.tan(theta) + (math.sin(theta) ** 2) * (
             math.tan(theta) ** 2))
 
-    # probably BUG in here: the values for C and S (see next "paragraph") are wrong. They depend on
-    # delta_perpendicular and on delta_parallel below. I don't know how and I don't know why...
-    # I went over it at least 20 times, consulted Tomaš and a mathematics student,
-    # and I honestly don't know what I am doing wrong here...
     delta_perp = math.atan2((pow(math.cos(theta), 2) - pow(a, 2) - pow(b, 2)), 2 * b * math.cos(theta))
     delta_paral = math.atan2((pow(pow(ior_c.real, 2) + pow(ior_c.imag, 2), 2) * pow(math.cos(theta), 2) - pow(a, 2) - pow(b, 2)),
                              (2 * math.cos(theta) * ((pow(ior_c.real, 2) - pow(ior_c.imag, 2)) * b - 2 * ior_c.real * ior_c.imag * a)))
@@ -203,12 +200,12 @@ def calculate_mueller_matrix(ior_c, a, b, theta):
     A = (f_perp + f_paral) / 2
     B = (f_perp - f_paral) / 2
     C = math.cos(delta_perp - delta_paral) * math.sqrt(f_perp * f_paral)
-    S = math.sin(delta_perp - delta_paral) * math.sqrt(f_perp * f_paral)
+    S = math.sin(delta_perp - delta_paral) * math.sqrt(f_perp * f_paral) * (-1)
 
     matrix = np.array([[A, B, 0, 0],
                        [B, A, 0, 0],
-                       [0, 0, -C, S],
-                       [0, 0,  S, C]])
+                       [0, 0, C, -S],
+                       [0, 0, S, C]])
 
     return matrix
 
@@ -278,6 +275,7 @@ def interact_with_surface(mueller_matrix, stokes_vector):
         return res
 
     else:
+        # something is very wrong here since the result is incorrect
         discr_angle_y = angle_between(mueller_matrix.frame_entry.y, stokes_vector.frame.y)
         discr_angle_z = angle_between(mueller_matrix.frame_entry.z, stokes_vector.frame.z)
 
@@ -285,13 +283,13 @@ def interact_with_surface(mueller_matrix, stokes_vector):
         theta = discr_angle_y
 
         rot_mat_pos = np.array([[1, 0, 0, 0],
-                                [0, math.cos(2 * theta), math.sin(2 * theta), 0],
-                                [0, -math.sin(2 * theta), math.cos(2 * theta), 0],
+                                [0, math.cos(2 * theta), -math.sin(2 * theta), 0],
+                                [0, math.sin(2 * theta), math.cos(2 * theta), 0],
                                 [0, 0, 0, 1]])
 
         rot_mat_neg = np.array([[1, 0, 0, 0],
-                                [0, math.cos(-2 * theta), math.sin(-2 * theta), 0],
-                                [0, -math.sin(-2 * theta), math.cos(-2 * theta), 0],
+                                [0, math.cos(-2 * theta), -math.sin(-2 * theta), 0],
+                                [0, math.sin(-2 * theta), math.cos(-2 * theta), 0],
                                 [0, 0, 0, 1]])
 
         res = rot_mat_pos.dot(mueller_matrix.matrix)
@@ -332,6 +330,10 @@ def calculate_polarized_light(ior_c_X1, ior_c_X2, delta, rho, phi, polarization_
     stokes_vector_frame = ReferenceFrame(0)
     stokes_vector = StokesVector(100.0, 0.0, 0.0, 0.0, stokes_vector_frame)
 
+    # filter - if not none -> interaction of stokes vector with it
+    if polarization_angle is not None:
+        stokes_vector.vector = apply_polarization(stokes_vector, polarization_angle)
+
     # X1 - setup
     x1_entry_frame = ReferenceFrame(0)  # same as frame of stokes vector
     x1_exit_frame = ReferenceFrame(-0)  # clockwise rotation
@@ -344,12 +346,15 @@ def calculate_polarized_light(ior_c_X1, ior_c_X2, delta, rho, phi, polarization_
     x2_mueller_matrix = MuellerMatrix(x2_entry_frame, x2_exit_frame)
     x2_mueller_matrix.matrix = calculate_mueller_matrix(ior_c_X2, a_X2, b_X2, phi)
 
-    # filter - if not none -> interaction of stokes vector with it
-    if polarization_angle is not None:
-        stokes_vector.vector = apply_polarization(stokes_vector, polarization_angle)
+    print(stokes_vector.vector)
 
     # X2 - interaction
     stokes_vector.vector = interact_with_surface(x2_mueller_matrix, stokes_vector)
+
+    print(stokes_vector.vector)
+    copy_vec = stokes_vector
+    res2 = interact_with_surface(x1_mueller_matrix, copy_vec)
+    print(res2)
 
     # X1 - interaction
     stokes_vector.vector = interact_with_surface(x1_mueller_matrix, stokes_vector)
@@ -363,7 +368,7 @@ def calculate_polarized_light(ior_c_X1, ior_c_X2, delta, rho, phi, polarization_
 
 # process user input
 def get_user_parameters():
-
+    '''
     # index of refraction X1
     ior_real = input("\nPlease enter your preferred real value for the Index of Refraction for X_1: ")
     ior_real = float(ior_real)
@@ -409,16 +414,7 @@ def get_user_parameters():
         polarization_answer = input("\nPlease enter your preferred value for the polarization angle (in degrees):  ")
         polarization_angle = float(polarization_answer) % 360
 
-    '''
-    # for now
-    ior_c_X1 = ComplexNumber(1.12, 2.16)
-    ior_c_X2 = ComplexNumber(0.608, 2.12)
-    delta = 48.0
-    rho = 34.0
-    phi = 20.0
-    polarization_angle = None
 
-    
     ior_c_X1 = ComplexNumber(0.666, 0.0)
     ior_c_X2 = ComplexNumber(0.666, 0.0)
     delta = 48.0
@@ -426,6 +422,18 @@ def get_user_parameters():
     phi = 54.6
     polarization_angle = 45
     '''
+
+    # for now
+    ior_c_X1 = ComplexNumber(1.12, 2.16)
+    ior_c_X2 = ComplexNumber(0.608, 2.12)
+    delta = 48.0
+    rho = 34.0
+    phi = 20.0
+    polarization_angle = 0.0
+
+
+
+
 
     # start calculation
     calculate_polarized_light(ior_c_X1, ior_c_X2, delta, rho, phi, polarization_angle)
@@ -437,7 +445,7 @@ print("||    2nd ASSIGNMENT Sebastian Schimper    ||")
 print("=============================================")
 
 # menu loop
-
+'''
 user_option = None
 while (user_option != "exit" and user_option != "Ecit") and (user_option != "exit" and user_option != "Exit"):
     user_option = input("Type either 'start' to start a new calculation or"
@@ -446,5 +454,5 @@ while (user_option != "exit" and user_option != "Ecit") and (user_option != "exi
         get_user_parameters()
     elif user_option == "exit" or user_option == "Exit":
         sys.exit(0)
-
+'''
 get_user_parameters()
