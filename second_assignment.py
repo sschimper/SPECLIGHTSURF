@@ -223,8 +223,10 @@ def calculate_polarizer(phi):
                        [cos2Phi, pow(cos2Phi, 2), sin2Phi * cos2Phi, 0],
                        [sin2Phi, sin2Phi * cos2Phi, pow(sin2Phi, 2), 0],
                        [0, 0, 0, 0]])
-    res = 0.5 * matrix
 
+    matrix = matrix.transpose()
+
+    res = 0.5 * matrix
     return res
 
 
@@ -340,25 +342,34 @@ def calculate_polarized_light(ior_c_X1, ior_c_X2, delta, rho, phi, polarization_
     polarizer = None
     if polarization_angle is not None:
         polarizer = calculate_polarizer(polarization_angle)
+        print("Polarizer: ")
+        print(polarizer)
+        print("------------")
 
     # X1 - setup
     x1_entry_frame = ReferenceFrame(0)  # same as frame of stokes vector
     x1_exit_frame = ReferenceFrame(-0)  # clockwise rotation
     x1_mueller_matrix = MuellerMatrix(x1_entry_frame, x1_exit_frame)
     x1_mueller_matrix.matrix = calculate_mueller_matrix(ior_c_X1, a_X1, b_X1, delta)
+    print("X1: ")
+    print(x1_mueller_matrix.matrix)
+    print("------------")
 
     # X2 - setup
     x2_entry_frame = ReferenceFrame(-rho)
     x2_exit_frame = ReferenceFrame(-rho)
     x2_mueller_matrix = MuellerMatrix(x2_entry_frame, x2_exit_frame)
     x2_mueller_matrix.matrix = calculate_mueller_matrix(ior_c_X2, a_X2, b_X2, phi)
+    print("X2: ")
+    print(x2_mueller_matrix.matrix)
+    print("------------")
+
+    # polarisation filter
+    if polarization_angle is not None:
+        stokes_vector.vector = stokes_vector.vector.dot(polarizer)
 
     # X2 - interaction
-    if polarization_angle is not None:
-        stokes_vector.vector = interact_with_surface(x2_mueller_matrix, polarizer.dot(x2_mueller_matrix.matrix),
-                                                     stokes_vector)
-    else:
-        stokes_vector.vector = interact_with_surface(x2_mueller_matrix, x2_mueller_matrix.matrix, stokes_vector)
+    stokes_vector.vector = interact_with_surface(x2_mueller_matrix, x2_mueller_matrix.matrix, stokes_vector)
 
     # X1 - interaction
     stokes_vector.vector = interact_with_surface(x1_mueller_matrix, x1_mueller_matrix.matrix, stokes_vector)
@@ -372,6 +383,7 @@ def calculate_polarized_light(ior_c_X1, ior_c_X2, delta, rho, phi, polarization_
 
 # process user input
 def get_user_parameters():
+    '''
     # index of refraction X1
     ior_real = input("\nPlease enter your preferred real value for the Index of Refraction for X_1: ")
     ior_real = float(ior_real)
@@ -417,8 +429,20 @@ def get_user_parameters():
         polarization_answer = input("\nPlease enter your preferred value for the polarization angle (in degrees):  ")
         polarization_angle = float(polarization_answer) % 360
 
+    '''
+
+    
+    # provide hard-coded values
+    ior_c_X1 = ComplexNumber(0.666, 0.0)
+    ior_c_X2 = ComplexNumber(0.666, 0.0)
+    delta = 48.0
+    rho = 0.0
+    phi = 54.6
+    polarization_angle = 45.0
+
     # start calculation
     calculate_polarized_light(ior_c_X1, ior_c_X2, delta, rho, phi, polarization_angle)
+    
 
 
 # header
