@@ -313,8 +313,13 @@ def print_stokes_vector(sv):
 
 
 # main calculation function
-def calculate_polarized_light(ior_c_X1, ior_c_X2, delta, rho, phi, polarization_angle):
-    print("\n=============================================")
+def calculate_polarized_light(ior_c_X1, ior_c_X2, delta, rho, phi, polarization_angle, provided_name):
+
+    if provided_name is not None:
+        print("\n=============================================")
+        print(provided_name)
+
+    print("=============================================")
     if ior_c_X1 is not None:
         print("Index of Refraction at X1 - Real Part: ", ior_c_X1.real)
         print("Index of Refraction at X1 - Imaginary Part: ", ior_c_X1.imag)
@@ -342,27 +347,18 @@ def calculate_polarized_light(ior_c_X1, ior_c_X2, delta, rho, phi, polarization_
     polarizer = None
     if polarization_angle is not None:
         polarizer = calculate_polarizer(polarization_angle)
-        print("Polarizer: ")
-        print(polarizer)
-        print("------------")
 
     # X1 - setup
     x1_entry_frame = ReferenceFrame(0)  # same as frame of stokes vector
     x1_exit_frame = ReferenceFrame(-0)  # clockwise rotation
     x1_mueller_matrix = MuellerMatrix(x1_entry_frame, x1_exit_frame)
     x1_mueller_matrix.matrix = calculate_mueller_matrix(ior_c_X1, a_X1, b_X1, delta)
-    print("X1: ")
-    print(x1_mueller_matrix.matrix)
-    print("------------")
 
     # X2 - setup
     x2_entry_frame = ReferenceFrame(-rho)
     x2_exit_frame = ReferenceFrame(-rho)
     x2_mueller_matrix = MuellerMatrix(x2_entry_frame, x2_exit_frame)
     x2_mueller_matrix.matrix = calculate_mueller_matrix(ior_c_X2, a_X2, b_X2, phi)
-    print("X2: ")
-    print(x2_mueller_matrix.matrix)
-    print("------------")
 
     # polarisation filter
     if polarization_angle is not None:
@@ -383,7 +379,7 @@ def calculate_polarized_light(ior_c_X1, ior_c_X2, delta, rho, phi, polarization_
 
 # process user input
 def get_user_parameters():
-    '''
+    
     # index of refraction X1
     ior_real = input("\nPlease enter your preferred real value for the Index of Refraction for X_1: ")
     ior_real = float(ior_real)
@@ -429,19 +425,26 @@ def get_user_parameters():
         polarization_answer = input("\nPlease enter your preferred value for the polarization angle (in degrees):  ")
         polarization_angle = float(polarization_answer) % 360
 
-    '''
-
+    # query the user to provide an (optional) name or heading
+    provided_name = None
+    provided_name = input("\nIf you want, you can provide a name or heading to be printed out to the terminal. If you do not wish to, just hit <Enter>: ")
+    if provided_name == "":
+        provided_name = None
     
+
+    '''
     # provide hard-coded values
-    ior_c_X1 = ComplexNumber(0.666, 0.0)
-    ior_c_X2 = ComplexNumber(0.666, 0.0)
+    ior_c_X1 = ComplexNumber(0.66203243958953994, 0.0)
+    ior_c_X2 = ComplexNumber(0.66203243958953994, 0.0)
     delta = 48.0
     rho = 0.0
     phi = 54.6
     polarization_angle = 45.0
+    provided_name = "Test Case 6"
+    '''
 
     # start calculation
-    calculate_polarized_light(ior_c_X1, ior_c_X2, delta, rho, phi, polarization_angle)
+    calculate_polarized_light(ior_c_X1, ior_c_X2, delta, rho, phi, polarization_angle, provided_name)
     
 
 
