@@ -315,24 +315,6 @@ def print_stokes_vector(sv):
 # main calculation function
 def calculate_polarized_light(ior_c_X1, ior_c_X2, delta, rho, phi, polarization_angle, provided_name):
 
-    if provided_name is not None:
-        print("\n=============================================")
-        print(provided_name)
-
-    print("=============================================")
-    if ior_c_X1 is not None:
-        print("Index of Refraction at X1 - Real Part: ", ior_c_X1.real)
-        print("Index of Refraction at X1 - Imaginary Part: ", ior_c_X1.imag)
-    if ior_c_X2 is not None:
-        print("Index of Refraction at X2 - Real Part: ", ior_c_X2.real)
-        print("Index of Refraction at X2 - Imaginary Part: ", ior_c_X2.imag)
-    print("Delta: ", delta)
-    print("Rho: ", rho)
-    print("Phi: ", phi)
-    if polarization_angle is not None:
-        print("Using Polarization Filter with angle: ", polarization_angle)
-    print("\nSTARTING CALCULATION")
-
     # calculate a and b coefficitents
     a_X1 = calculate_a_coeff(ior_c_X1, delta)
     b_X1 = calculate_b_coeff(ior_c_X1, delta)
@@ -371,10 +353,10 @@ def calculate_polarized_light(ior_c_X1, ior_c_X2, delta, rho, phi, polarization_
     stokes_vector.vector = interact_with_surface(x1_mueller_matrix, x1_mueller_matrix.matrix, stokes_vector)
 
     # print result
-    print("--------------------------------------------------")
-    print_stokes_vector(stokes_vector.vector)
-    print("--------------------------------------------------")
-    print("")
+    if provided_name is not None:
+        print(provided_name, " ", stokes_vector.vector)
+    else:
+        print(stokes_vector.vector)
 
 
 # process user input
@@ -443,15 +425,55 @@ def get_user_parameters():
     provided_name = "Test Case 6"
     '''
 
+    # print banner
+    print("=============================================")
+    if ior_c_X1 is not None:
+        print("Index of Refraction at X1 - Real Part: ", ior_c_X1.real)
+        print("Index of Refraction at X1 - Imaginary Part: ", ior_c_X1.imag)
+    if ior_c_X2 is not None:
+        print("Index of Refraction at X2 - Real Part: ", ior_c_X2.real)
+        print("Index of Refraction at X2 - Imaginary Part: ", ior_c_X2.imag)
+    print("Delta: ", delta)
+    print("Rho: ", rho)
+    print("Phi: ", phi)
+    if polarization_angle is not None:
+        print("Using Polarization Filter with angle: ", polarization_angle)
+    print("\nSTARTING CALCULATION")
+    print("")
+
     # start calculation
     calculate_polarized_light(ior_c_X1, ior_c_X2, delta, rho, phi, polarization_angle, provided_name)
     
-
 
 # header
 print("=============================================")
 print("||    2nd ASSIGNMENT Sebastian Schimper    ||")
 print("=============================================")
+print("")
+
+# print default test cases
+# test cases 1 - 3
+print("Test Cases 1 - 3")
+ior1_X1 = ComplexNumber(1.33, 0.0)
+ior1_X2 = ComplexNumber(1.5, 0.0)
+calculate_polarized_light(ior1_X1, ior1_X2, 53.0, 0.0, 56.0, None, "Test Case 1")
+calculate_polarized_light(ior1_X1, ior1_X2, 53.0, 0.0, 56.0, 0.0, "Test Case 2")
+calculate_polarized_light(ior1_X1, ior1_X2, 53.0, 0.0, 56.0, 90.0, "Test Case 3")
+print("")
+print("Test Cases 4 - 6")
+ior2_X1 = ComplexNumber(0.662, 0.0)
+ior2_X2 = ComplexNumber(0.662, 0.0)
+calculate_polarized_light(ior2_X1, ior2_X2, 48.0, 0.0, 54.6, 0.0, "Test Case 4")
+calculate_polarized_light(ior2_X1, ior2_X2, 48.0, 0.0, 54.6, 90.0, "Test Case 5")
+calculate_polarized_light(ior2_X1, ior2_X2, 48.0, 0.0, 54.6, 45.0, "Test Case 6")
+print("")
+print("Test Cases 7 - 9")
+ior3_X1 = ComplexNumber(1.12, 2.16)
+ior3_X2 = ComplexNumber(0.608, 2.12)
+calculate_polarized_light(ior3_X1, ior3_X2, 48.0, 34.0, 20.0, None, "Test Case 7")
+calculate_polarized_light(ior3_X1, ior3_X2, 48.0, 34.0, 20.0, 0.0, "Test Case 8")
+calculate_polarized_light(ior3_X1, ior3_X2, 48.0, 34.0, 20.0, 90.0, "Test Case 9")
+print("")
 
 # menu loop
 user_option = None
