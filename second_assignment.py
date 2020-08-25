@@ -268,8 +268,8 @@ def angle_between(v1, v2):
     return np.arccos(np.clip(np.dot(v1_u, v2_u), -1.0, 1.0))
 
 
-# interact with surface
-def interact_with_surface(mueller_matrix_whole, matrix, stokes_vector):
+# interact with surface 
+def interact(mueller_matrix_whole, matrix, stokes_vector):
     # if the frame of the stokes vector matches the entry frame of the mueller matrix
     #   then just multiply
     # else
@@ -308,9 +308,7 @@ def interact_with_surface(mueller_matrix_whole, matrix, stokes_vector):
 
 # print the resulting vector
 def print_stokes_vector(sv):
-    print("The resulting stokes vector looks like this: ")
-    print(sv)
-
+    print("The resulting stokes vector looks like ")
 
 # main calculation function
 def calculate_polarized_light(ior_c_X1, ior_c_X2, delta, rho, phi, polarization_angle, provided_name):
@@ -325,11 +323,6 @@ def calculate_polarized_light(ior_c_X1, ior_c_X2, delta, rho, phi, polarization_
     stokes_vector_frame = ReferenceFrame(0)
     stokes_vector = StokesVector(100.0, 0.0, 0.0, 0.0, stokes_vector_frame)
 
-    # if polarization angle is specified, calculate polarization matrix
-    polarizer = None
-    if polarization_angle is not None:
-        polarizer = calculate_polarizer(polarization_angle)
-
     # X1 - setup
     x1_entry_frame = ReferenceFrame(0)  # same as frame of stokes vector
     x1_exit_frame = ReferenceFrame(-0)  # clockwise rotation
@@ -342,15 +335,27 @@ def calculate_polarized_light(ior_c_X1, ior_c_X2, delta, rho, phi, polarization_
     x2_mueller_matrix = MuellerMatrix(x2_entry_frame, x2_exit_frame)
     x2_mueller_matrix.matrix = calculate_mueller_matrix(ior_c_X2, a_X2, b_X2, phi)
 
-    # polarisation filter
+    # if polarization angle is specified, calculate polarization matrix
+    # what I am doing here is misusing the mueller matrix struct to 
+    # describe the polarization filter. It's a bit crazy but it works
+    polarizer = None
+    polarizerMM = None # using mueller matrix struct as description for polarizer
     if polarization_angle is not None:
-        stokes_vector.vector = stokes_vector.vector.dot(polarizer)
+        polarizer = calculate_polarizer(polarization_angle)
+        polarizerMM = MuellerMatrix(x2_entry_frame, x2_exit_frame)
+        polarizerMM.set_mueller_matrix(polarizer)
+    
+    # polarisation filter - interaction
+    if polarization_angle is not None and polarizerMM is not None:
+        # stokes_vector.vector = stokes_vector.vector.dot(polarizer)
+        # x2_mueller_matrix.matrix = polarizer.dot(x2_mueller_matrix.matrix)
+        stokes_vector.vector = interact(polarizerMM, polarizerMM.matrix, stokes_vector)
 
     # X2 - interaction
-    stokes_vector.vector = interact_with_surface(x2_mueller_matrix, x2_mueller_matrix.matrix, stokes_vector)
+    stokes_vector.vector = interact(x2_mueller_matrix, x2_mueller_matrix.matrix, stokes_vector)
 
     # X1 - interaction
-    stokes_vector.vector = interact_with_surface(x1_mueller_matrix, x1_mueller_matrix.matrix, stokes_vector)
+    stokes_vector.vector = interact(x1_mueller_matrix, x1_mueller_matrix.matrix, stokes_vector)
 
     # print result
     if provided_name is not None:
@@ -412,18 +417,6 @@ def get_user_parameters():
     provided_name = input("\nIf you want, you can provide a name or heading to be printed out to the terminal. If you do not wish to, just hit <Enter>: ")
     if provided_name == "":
         provided_name = None
-    
-
-    '''
-    # provide hard-coded values
-    ior_c_X1 = ComplexNumber(0.66203243958953994, 0.0)
-    ior_c_X2 = ComplexNumber(0.66203243958953994, 0.0)
-    delta = 48.0
-    rho = 0.0
-    phi = 54.6
-    polarization_angle = 45.0
-    provided_name = "Test Case 6"
-    '''
 
     # print banner
     print("=============================================")
@@ -476,12 +469,15 @@ calculate_polarized_light(ior3_X1, ior3_X2, 48.0, 34.0, 20.0, 90.0, "Test Case 9
 print("")
 
 # menu loop
+'''
 user_option = None
-while (user_option != "exit" and user_option != "Ecit") and (user_option != "exit" and user_option != "Exit"):
+while (user_option != "exit" and user_option != "Exit") and (user_option != "exit" and user_option != "Exit"):
     user_option = input("Type either 'start' to start a new calculation or"
                         "\n'exit' to exit the program: ")
     if user_option == "start" or user_option == "Start":
         get_user_parameters()
     elif user_option == "exit" or user_option == "Exit":
         sys.exit(0)
+        '''
+get_user_parameters()
 
